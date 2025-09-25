@@ -154,13 +154,20 @@ def compute_graph_statistics(graphs):
     avg_degree = [np.mean([d for _, d in G.degree()]) if G.number_of_nodes() > 0 else 0 for G in graphs]
     avg_clustering = [nx.average_clustering(G) if G.number_of_nodes() > 0 else 0 for G in graphs]
     avg_ac = [nx.algebraic_connectivity(G) if G.number_of_nodes() > 0 else 0 for G in graphs]
+    n_triangles = []
+    for G in graphs:
+        mtx = torch.Tensor(nx.to_numpy_array(G))
+        a3 = torch.matmul(torch.matmul(mtx,mtx),mtx)
+        n_triangles.append(torch.trace(a3)/6)
+        
     stats = {
         "num_graphs": len(graphs),
         "avg_nodes": np.mean(n_nodes),
         "avg_edges": np.mean(n_edges),
         "avg_degree": np.mean(avg_degree),
         "avg_clustering": np.mean(avg_clustering),
-        "avg_algebraic_connectivity": np.mean(avg_ac)
+        "avg_algebraic_connectivity": np.mean(avg_ac),
+        "avg_triangles": np.mean(n_triangles)
     }
     return stats
 
@@ -179,10 +186,15 @@ def compare_statistics(real_graphs, generated_graphs, printout=True):
         print(f"  Avg edges:      {real_stats['avg_edges']:.2f}")
         print(f"  Avg degree:     {real_stats['avg_degree']:.2f}")
         print(f"  Avg clustering: {real_stats['avg_clustering']:.3f}")
+        print(f"  Avg algebraic connectivity: {real_stats['avg_algebraic_connectivity']:.3f}")
+        print(f"  Avg triangles: {real_stats['avg_triangles']:.3f}")
         print(f"Generated graphs: {gen_stats['num_graphs']} graphs")
         print(f"  Avg nodes:      {gen_stats['avg_nodes']:.2f}")
         print(f"  Avg edges:      {gen_stats['avg_edges']:.2f}")
         print(f"  Avg degree:     {gen_stats['avg_degree']:.2f}")
         print(f"  Avg clustering: {gen_stats['avg_clustering']:.3f}")
+        print(f"  Avg algebraic connectivity: {gen_stats['avg_algebraic_connectivity']:.3f}")
+        print(f"  Avg triangles: {gen_stats['avg_triangles']:.3f}")
+
     
     return real_stats, gen_stats
