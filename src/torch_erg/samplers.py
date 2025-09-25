@@ -323,10 +323,9 @@ class GWGSampler(BaseSampler, ABC):
 
 
 class GWG_Hybrid_Sampler(BaseSampler, ABC):
-    def __init__(self, backend: str, model: nn.Module):
-        super().__init__(backend, model)
+    def init(self, backend: str, model: nn.Module):
+        super().init(backend, model)
         self.model = model
-
         self.model.to(self.backend)
 
     def _d(self,x):
@@ -337,7 +336,12 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
         
         mtx= mtx.to(self.backend)
         ham = ham.to(self.backend)
+        
         comp_ham = ham + self.model(mtx)
+        print("comp ham is: ", comp_ham)
+        print("ham is: ", ham)
+        
+
         if mtx.grad is None: 
             comp_ham.backward(retain_graph = True)
 
@@ -374,11 +378,46 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
             q_ix_prime = torch.nn.functional.softmax(dx.ravel(), dim=0)
 
         qq = torch.exp(new_ham - comp_ham) * q_ix_prime[i * mtx.shape[1] + j]/q_ix[i * mtx.shape[1] + j]
-        #print("new ham is: ", new_ham)
-        #print("old ham is: ", ham)
+        print("new ham is: ", new_ham)
+        print("old ham is: ", comp_ham)
         #print("qq is: ", qq)
         acceptance_prob = min(1, qq.item())   
         
+        return new_mtx, acceptance_prob
+
+    
+    def observables(self, mtx):
+        pass
+
+
+class MH_Hybrid_Sampler(BaseSampler, ABC):
+    def init(self, backend: str, model: nn.Module):
+        super().init(backend, model)
+        self.model = model
+        self.model.to(self.backend)
+
+    def proposal(self,mtx, obs, params, ham):
+        
+        mtx= mtx.to(self.backend)
+        ham = ham.to(self.backend)
+
+        new_mtx, i, j = unif_move(mtx)
+
+        new_obs = self.observables(new_mtx)
+        
+        
+        #print("obs are: ", new_obs)
+        #print("params are: ", params)
+        new_ham_base = self._hamiltonian(new_obs,params)
+        new_ham_model = self.model(new_mtx)
+
+        new_ham = new_ham_base + new_ham_model    
+
+        qq = min(1, torch.exp(new_ham - ham).item())
+        print("new ham is: ", new_ham)
+        print("old ham is: ", ham)
+
+        acceptance_prob = min(1, qq)   
         return new_mtx, acceptance_prob
 
     
