@@ -468,6 +468,67 @@ def train_one_epoch_pcd(model: nn.Module, dataset: GraphDataset, optimizer: torc
         idx += 1
     return total_loss / len(dataset)
 
+def train_one_epoch_pcd_clipped(
+    model: nn.Module,
+    dataset,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+    persistent_chains: list,
+    mini_steps: int = 50,
+    clip_norm: float = 5.0,
+    reset_prob: float = 0.05,   # reset 5% of chains each epoch
+):
+ 
+
+    model.train()
+    total_loss = 0.0
+
+    # Ensure persistent_chains initialized
+    if len(persistent_chains) < len(dataset):
+        for A, _ in dataset:
+            n = A.shape[0]
+            # initialize ER with same density as A
+            edges = A.sum().item() / 2
+            max_edges = n * (n - 1) / 2
+            p = edges / (max_edges + 1e-8)
+            Ar = torch.zeros((n, n))
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if random.random() < p:
+                        Ar[i, j] = Ar[j, i] = 1.0
+            persistent_chains.append(Ar)
+
+    for idx, (A, feats) in enumerate(dataset):
+        A = A.to(device)
+        feats = feats.to(device)
+
+        # reset some chains to prevent sticking
+        if random.random() < reset_prob:
+            n = A.shape[0]
+            persistent_chains[idx] = torch.bernoulli(
+                torch.full((n, n), 0.1)
+            ).triu(1)
+            persistent_chains[idx] = persistent_chains[idx] + persistent_chains[idx].T
+
+        # Update persistent chain
+        chainA = persistent_chains[idx].to(device)
+        chainA = gibbs_ministeps(chainA, model, feats, device, mini_steps=mini_steps)
+        persistent_chains[idx] = chainA.cpu()
+
+        # Compute loss
+        optimizer.zero_grad()
+        loss = pcd_loss(model, A, feats, chainA.to(device), device)
+
+        # Backprop
+        loss.backward()
+
+        # Clip gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_norm)
+
+        optimizer.step()
+        total_loss += loss.item()
+
+    return total_loss / len(dataset)
 # -----------------------------
 # Generation utilities
 # -----------------------------
