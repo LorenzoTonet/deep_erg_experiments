@@ -191,13 +191,6 @@ class BaseSampler(ABC):
         tt = torch.stack(return_obs).mean(axis = 0)
         print("Mean obs: ", tt)
         return return_obs, return_graph
-    
-
-
-
-
-
-
 
 class MHSampler(BaseSampler, ABC):
     def __init__(self, backend: str):
@@ -226,8 +219,6 @@ class MHSampler(BaseSampler, ABC):
     def observables(self, mtx):
         pass
 
-
-
 class MHSampler_Hard(BaseSampler, ABC):
     def __init__(self, backend: str):
         super().__init__(backend)
@@ -248,10 +239,7 @@ class MHSampler_Hard(BaseSampler, ABC):
             #print("obs are: ", new_obs)
             #print("params are: ", params)
             new_ham = self._hamiltonian(new_obs,params)
-
             
-
-
             qq = torch.exp(new_ham - ham) 
             #print("new ham is: ", new_ham)
             #print("old ham is: ", ham)
@@ -263,9 +251,6 @@ class MHSampler_Hard(BaseSampler, ABC):
     
     def observables(self, mtx):
         pass
-
-
-
 
 class GWGSampler(BaseSampler, ABC):
     def __init__(self, backend: str):
@@ -319,13 +304,11 @@ class GWGSampler(BaseSampler, ABC):
     def observables(self, mtx):
         pass
 
-
-
-
 class GWG_Hybrid_Sampler(BaseSampler, ABC):
     def init(self, backend: str, model: nn.Module):
         super().init(backend, model)
         self.model = model
+
         self.model.to(self.backend)
 
     def _d(self,x):
@@ -336,11 +319,11 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
         
         mtx= mtx.to(self.backend)
         ham = ham.to(self.backend)
-        
-        comp_ham = ham + self.model(mtx)
-        print("comp ham is: ", comp_ham)
-        print("ham is: ", ham)
-        
+        model_ham = self.model(mtx)
+        comp_ham = ham + model_ham
+        #print("comp ham is: ", comp_ham)
+        #print("ham is: ", ham)
+        #print('model ham is: ', model_ham)
 
         if mtx.grad is None: 
             comp_ham.backward(retain_graph = True)
@@ -378,8 +361,8 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
             q_ix_prime = torch.nn.functional.softmax(dx.ravel(), dim=0)
 
         qq = torch.exp(new_ham - comp_ham) * q_ix_prime[i * mtx.shape[1] + j]/q_ix[i * mtx.shape[1] + j]
-        print("new ham is: ", new_ham)
-        print("old ham is: ", comp_ham)
+        #print("new ham is: ", new_ham)
+        #print("old ham is: ", ham)
         #print("qq is: ", qq)
         acceptance_prob = min(1, qq.item())   
         
@@ -388,7 +371,6 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
     
     def observables(self, mtx):
         pass
-
 
 class MH_Hybrid_Sampler(BaseSampler, ABC):
     def init(self, backend: str, model: nn.Module):
@@ -402,22 +384,20 @@ class MH_Hybrid_Sampler(BaseSampler, ABC):
         ham = ham.to(self.backend)
 
         new_mtx, i, j = unif_move(mtx)
-
         new_obs = self.observables(new_mtx)
         
-        
-        #print("obs are: ", new_obs)
-        #print("params are: ", params)
+
         new_ham_base = self._hamiltonian(new_obs,params)
         new_ham_model = self.model(new_mtx)
 
         new_ham = new_ham_base + new_ham_model    
 
-        qq = min(1, torch.exp(new_ham - ham).item())
-        print("new ham is: ", new_ham)
-        print("old ham is: ", ham)
+        acceptance_prob = min(1, torch.exp(new_ham-ham).item())
+        #print("proposed ham is: ", new_ham)
+        #print("acceptance prob is: ", acceptance_prob)
 
-        acceptance_prob = min(1, qq)   
+        #print("---------------------------")
+
         return new_mtx, acceptance_prob
 
     
