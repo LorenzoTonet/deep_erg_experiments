@@ -1,30 +1,3 @@
-"""
-GNN-EBM implementation (PyTorch)
-
-Implements architecture and training / sampling procedures described in
-"Graph Generation with Energy-Based Models" (Liu et al., 2020) PDF the user provided.
-
-Features implemented:
-- GNN-EBM model: dot-product attention message passing, 6 MP steps,
-  MLP readout (3 layers, 1024 hidden) producing a scalar energy f(G;theta).
-- Losses: Pseudolikelihood, Conditional NCE (with symmetric corruption),
-  Persistent Contrastive Divergence (PCD) using Gibbs sampling.
-- Corruption procedure for CNCE (Algorithm 1) using Beta noise.
-- Gibbs sampler for graphs (Algorithm 2) and PCD persistent chains.
-- Generation: greedy energy minimization + optional Gibbs refinement.
-- Evaluation: degree and clustering MMD between generated graphs and dataset.
-
-Notes / assumptions:
-- This implementation operates on single graphs (variable |V|). For efficiency
-  you may want to batch graphs with padding or use PyG / DGL for large-scale runs.
-- "Orbit" statistics (graphlet-orbit counts) used in the paper are not
-  implemented here; a placeholder is provided if you want to add a graphlet
-  library (e.g., ORCA) to compute orbit counts.
-- Dataset loader expects a list of networkx.Graph objects. See `GraphDataset`.
-
-Run as a module or import functions in your own training harness.
-"""
-
 import math
 import random
 from typing import List, Tuple, Optional
@@ -86,7 +59,6 @@ class AttentionMP(nn.Module):
         M = torch.matmul(att, v)
         out = self.mlp(M)
         return out
-
 
 class GNN_EBM(nn.Module):
     def __init__(self, node_feat_dim: int = 16, hidden_dim: int = 1024, mp_steps: int = 6, device: torch.device = torch.device("cpu")):
@@ -154,7 +126,6 @@ def flip_edge(adj: torch.Tensor, i: int, j: int) -> torch.Tensor:
     A[j, i] = A[i, j]
     return A
 
-
 def cnce_corrupt(adj: torch.Tensor, alpha=1.0, beta=20.0) -> torch.Tensor:
     """Algorithm 1: independently flip each upper-triangular edge with probability p ~ Beta(alpha,beta)
     Returns corrupted adjacency matrix tensor (symmetric)
@@ -191,8 +162,7 @@ def gibbs_step(adj: torch.Tensor, model: nn.Module, node_feats: torch.Tensor, de
                 A = A_prime
     return A
 
-
-def gibbs_ministeps(adj: torch.Tensor, model: nn.Module, node_feats: torch.Tensor, device: torch.device, mini_steps: int) -> torch.Tensor:
+def gibbs_ministeps(adj: torch.Tensor, model: nn.Module, node_feats: torch.Tensor, device: torch.device, mini_steps: int, T:float = 1.0) -> torch.Tensor:
     # run `mini_steps` individual mini-steps: sample a random pair each time
     # its formulation is equal to the standard MH one
     n = adj.shape[0]
@@ -211,7 +181,7 @@ def gibbs_ministeps(adj: torch.Tensor, model: nn.Module, node_feats: torch.Tenso
 
             fApr = model(node_feats.to(device), A_prime.to(device))
 
-            p = torch.sigmoid(fA - fApr).item()
+            p = torch.sigmoid((fA - fApr) / T).item()
         if random.random() > p:
             A = A_prime
     return A
@@ -334,12 +304,10 @@ def graph_degree_hist(G: nx.Graph) -> np.ndarray:
     # return sorted degree vector
     return np.sort(degs)
 
-
 def graph_clustering_vec(G: nx.Graph) -> np.ndarray:
     # per-node clustering coefficients
     clus = np.array(list(nx.clustering(G).values()))
     return np.sort(clus)
-
 
 def compute_mmd(X: np.ndarray, Y: np.ndarray, sigma: float = 1.0) -> float:
     #compute maximum mean discrepancy between two sets of samples
@@ -358,7 +326,6 @@ def compute_mmd(X: np.ndarray, Y: np.ndarray, sigma: float = 1.0) -> float:
     yy = sum(rbf(Y[i], Y[j]) for i in range(n) for j in range(n)) / (n * n)
     xy = sum(rbf(X[i], Y[j]) for i in range(m) for j in range(n)) / (m * n)
     return xx + yy - 2 * xy
-
 
 def evaluate_mmd_generated(dataset_graphs: List[nx.Graph], generated_graphs: List[nx.Graph], sigma=1.0):
     # degree MMD (maximum mean discrepancy)
@@ -381,11 +348,7 @@ def evaluate_mmd_generated(dataset_graphs: List[nx.Graph], generated_graphs: Lis
     mmd_clus = compute_mmd(np.array(clus_real), np.array(clus_gen), sigma=sigma)
 
     
-
     return {"degree_mmd": mmd_deg, "clustering_mmd": mmd_clus}
-
-
-
 
 # -----------------------------
 # Training harness
@@ -404,7 +367,6 @@ def train_one_epoch_pseudolikelihood(model: nn.Module, dataset: GraphDataset, op
         total_loss += loss.item()
     return total_loss / len(dataset)
 
-
 def train_one_epoch_cnce(model: nn.Module, dataset: GraphDataset, optimizer: torch.optim.Optimizer, device: torch.device, alpha=1.0, beta=20.0):
     model.train()
     total_loss = 0.0
@@ -417,7 +379,6 @@ def train_one_epoch_cnce(model: nn.Module, dataset: GraphDataset, optimizer: tor
         optimizer.step()
         total_loss += loss.item()
     return total_loss / len(dataset)
-
 
 def train_one_epoch_pcd(model: nn.Module, dataset: GraphDataset, optimizer: torch.optim.Optimizer, device: torch.device, persistent_chains: List[torch.Tensor], mini_steps:int = 100):
     """persistent_chains: list of adjacency matrices same length or greater than dataset; if empty, initialize from ER(p=0.1)"""
@@ -529,6 +490,7 @@ def train_one_epoch_pcd_clipped(
         total_loss += loss.item()
 
     return total_loss / len(dataset)
+
 # -----------------------------
 # Generation utilities
 # -----------------------------

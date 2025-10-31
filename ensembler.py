@@ -18,7 +18,6 @@ seed = np.random.randint(500)
 name = '30_ieee'
 
 
-
 mc_type = 'MH_'
 
 if mc_type == 'GWG_':

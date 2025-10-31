@@ -59,12 +59,12 @@ def compare_graphs(mtx1: torch.Tensor, mtx2: torch.Tensor,
 
     plt.show()
     
-def hist_obs_samples(observables_samples: list, observable_data: torch.Tensor, w = 10, h = 8, scale = 0.6, color = "#11a39c", bins = 30, obs_labels = None):
+def hist_obs_samples(observables_samples: list, reference: torch.Tensor, w = 10, h = 8, scale = 0.6, color = "#11a39c", bins = 30, obs_labels = None, density_bool = False):
     num_obs = observables_samples[0].shape[0]
     figsize = (num_obs * w * scale, h * scale)
     
     samples_np = torch.stack(observables_samples).cpu().numpy()
-    data_np = observable_data.cpu().numpy()
+    data_np = reference.cpu().numpy()
     
     fig, axes = plt.subplots(1, num_obs, figsize=figsize, squeeze=False)
     
@@ -72,12 +72,47 @@ def hist_obs_samples(observables_samples: list, observable_data: torch.Tensor, w
         ax = axes[0, p]
 
         obs_samples = samples_np[:, p]
-        ax.hist(obs_samples, bins=bins, alpha=0.5, label='Sampled', color=color)
+        ax.hist(obs_samples, bins=bins, alpha=0.5, label='Sampled', color=color, density = density_bool)
 
         if data_np.ndim == 1 or data_np.shape[0] < 2:
             ax.axvline(data_np[p], color='r', linestyle='--', label='Data')
         else:
-            ax.hist(data_np[:, p], bins=bins, alpha=0.5, label='Data')
+            ax.hist(data_np[:, p], bins=bins, alpha=0.5, label='Data', )
+        if obs_labels is not None:
+            ax.set_title(f'{obs_labels[p]}')
+        else:
+            ax.set_title(f'Observable {p}')
+        ax.legend()
+    
+    plt.tight_layout()
+    plt.show()
+
+def hist_comparison(observables_distributions_1: list[torch.Tensor], observables_distributions_2: list[torch.Tensor], w = 10, h = 8, scale = 0.6, color = "#11a39c", bins = 30, obs_labels = None, distributions_labels =["Distribution 1","Distribution 2"]):
+    num_obs = observables_distributions_1[0].shape[0]
+    figsize = (num_obs * w * scale, h * scale)
+    
+    total_obs_1 = torch.stack(observables_distributions_1).cpu().numpy()
+    total_obs_2 = torch.stack(observables_distributions_2).cpu().numpy()
+
+    fig, axes = plt.subplots(1, num_obs, figsize=figsize, squeeze=False)
+    
+    for p in range(num_obs):
+        ax = axes[0, p]
+
+        obs_i_1 = total_obs_1[:, p]
+        obs_i_2    = total_obs_2[:, p]
+
+        # dataset
+        ax.hist(
+            obs_i_1, bins=bins, alpha=0.5, 
+            label=distributions_labels[0], density=True
+        )
+        # generati
+        ax.hist(
+            obs_i_2, bins=bins, alpha=0.5, 
+            label=distributions_labels[1], density=True
+        )
+
         if obs_labels is not None:
             ax.set_title(f'{obs_labels[p]}')
         else:

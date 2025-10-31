@@ -33,9 +33,6 @@ def evaluate_model(model, dataset, device, num_graphs=50, gibbs_steps=200):
     metrics = evaluate_mmd_generated(dataset.graphs[:len(generated)], generated)
     return metrics
 
-
-
-
 def show_graph(G, title=None, layout="spring"):
     """
     Display a single NetworkX graph.
@@ -61,7 +58,6 @@ def show_graph(G, title=None, layout="spring"):
         plt.title(title)
     plt.show()
 
-
 def compare_graphs(G_real, G_generated, layout="spring", outdir="graphs_out"):
     """
     Show a real vs. generated graph side by side.
@@ -86,7 +82,6 @@ def compare_graphs(G_real, G_generated, layout="spring", outdir="graphs_out"):
     plt.tight_layout()
     plt.savefig(os.path.join(outdir, 'compare_graphs.png'), bbox_inches="tight")
     plt.show()
-
 
 def save_graph(G, filename, layout="spring", outdir="graphs_out"):
     """
@@ -141,7 +136,6 @@ def show_graph_grid(graphs, rows=2, cols=4, layout="spring", titles=None,outdir=
     plt.savefig(os.path.join(outdir, 'grid_example.png'), bbox_inches="tight")
     plt.show()
 
-
 def compute_graph_statistics(graphs):
     """
     Compute average statistics over a list of networkx graphs.
@@ -170,7 +164,6 @@ def compute_graph_statistics(graphs):
         "avg_triangles": np.mean(n_triangles)
     }
     return stats
-
 
 def compare_statistics(real_graphs, generated_graphs, printout=True):
     """

@@ -189,6 +189,7 @@ class BaseSampler(ABC):
         return_graph.append(current_graph.clone().detach())
         return_obs.append(self.observables(current_graph).clone().detach())
         tt = torch.stack(return_obs).mean(axis = 0)
+        print("Graph sampled: ", len(return_graph))
         print("Mean obs: ", tt)
         return return_obs, return_graph
 
