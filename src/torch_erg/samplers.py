@@ -190,6 +190,8 @@ class BaseSampler(ABC):
         return_obs.append(self.observables(current_graph).clone().detach())
         tt = torch.stack(return_obs).mean(axis = 0)
         print("Graph sampled: ", len(return_graph))
+        print("-----------------------------------")
+        print("Start obs: ", start_obs)
         print("Mean obs: ", tt)
         return return_obs, return_graph
 
@@ -306,8 +308,8 @@ class GWGSampler(BaseSampler, ABC):
         pass
 
 class GWG_Hybrid_Sampler(BaseSampler, ABC):
-    def init(self, backend: str, model: nn.Module):
-        super().init(backend, model)
+    def __init__(self, backend: str, model: nn.Module):
+        super().__init__(backend, model)
         self.model = model
 
         self.model.to(self.backend)
@@ -374,8 +376,8 @@ class GWG_Hybrid_Sampler(BaseSampler, ABC):
         pass
 
 class MH_Hybrid_Sampler(BaseSampler, ABC):
-    def init(self, backend: str, model: nn.Module):
-        super().init(backend, model)
+    def __init__(self, backend: str, model: nn.Module):
+        super().__init__(backend, model)
         self.model = model
         self.model.to(self.backend)
 
